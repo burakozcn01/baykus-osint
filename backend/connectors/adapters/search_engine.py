@@ -343,3 +343,48 @@ class BingAdapter(SearchEngineAdapter):
         except Exception as e:
             logger.error(f"Error processing Bing image results: {str(e)}")
             return {'engine': self.engine, 'error': str(e), 'raw_data': data}
+
+
+class DuckDuckGoAdapter(SearchEngineAdapter):
+    """Adapter for the DuckDuckGo Search API."""
+    
+    def __init__(self, connector):
+        super().__init__(connector)
+        self.engine = 'duckduckgo'
+    
+    def test_connection(self):
+        """Test the connection to the DuckDuckGo Search API."""
+        test_query = 'test'
+        success, _, _, error_message = self.search_web(test_query, 1)
+        
+        if success:
+            return True, f"DuckDuckGo Search API connection successful"
+        else:
+            return False, f"DuckDuckGo Search API connection failed: {error_message}"
+    
+    def process_search_results(self, data):
+        """Process DuckDuckGo web search results."""
+        try:
+            results = data.get('results', [])
+            
+            processed = {
+                'engine': self.engine,
+                'type': 'web_search',
+                'query': data.get('query', ''),
+                'total_results': len(results),
+                'results': []
+            }
+            
+            for result in results:
+                processed_result = {
+                    'title': result.get('title', ''),
+                    'url': result.get('url', ''),
+                    'description': result.get('description', ''),
+                    'source': result.get('source', '')
+                }
+                processed['results'].append(processed_result)
+            
+            return processed
+        except Exception as e:
+            logger.error(f"Error processing DuckDuckGo search results: {str(e)}")
+            return {'engine': self.engine, 'error': str(e), 'raw_data': data}

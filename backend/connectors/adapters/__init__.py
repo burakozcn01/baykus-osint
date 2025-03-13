@@ -4,13 +4,20 @@ Each adapter type implements the methods defined in the BaseAdapter class.
 """
 
 from .base import BaseAdapter
-from .social_media import TwitterAdapter, FacebookAdapter, LinkedInAdapter
-from .domain_info import WhoisAdapter, DNSAdapter
-from .search_engine import GoogleAdapter, BingAdapter
+from .social_media import (
+    TwitterAdapter, FacebookAdapter, LinkedInAdapter, 
+    InstagramAdapter, RedditAdapter
+)
+from .domain_info import WhoisAdapter, DNSAdapter, SSLCertificateAdapter
+from .search_engine import GoogleAdapter, BingAdapter, DuckDuckGoAdapter
+from .web_archive import WaybackMachineAdapter
 from .email_verify import EmailVerificationAdapter
+from .phone_analysis import PhoneAnalysisAdapter
 from .pastebin import PastebinAdapter
 from .username_search import UsernameSearchAdapter
-from .image_analysis import ExifExtractorAdapter, ReverseImageSearchAdapter
+from .image_analysis import (
+    ExifExtractorAdapter, ReverseImageSearchAdapter, ImageComparisonAdapter
+)
 
 # Mapping of connector types to their adapter classes
 CONNECTOR_TYPE_ADAPTERS = {
@@ -18,17 +25,27 @@ CONNECTOR_TYPE_ADAPTERS = {
         'twitter': TwitterAdapter,
         'facebook': FacebookAdapter,
         'linkedin': LinkedInAdapter,
+        'instagram': InstagramAdapter,
+        'reddit': RedditAdapter,
     },
     'domain_info': {
         'whois': WhoisAdapter,
         'dns': DNSAdapter,
+        'ssl': SSLCertificateAdapter,
     },
     'search_engine': {
         'google': GoogleAdapter,
         'bing': BingAdapter,
+        'duckduckgo': DuckDuckGoAdapter,
+    },
+    'web_archive': {
+        'wayback_machine': WaybackMachineAdapter,
     },
     'email_verify': {
         'default': EmailVerificationAdapter,
+    },
+    'phone_analysis': {
+        'default': PhoneAnalysisAdapter,
     },
     'pastebin': {
         'default': PastebinAdapter,
@@ -39,6 +56,7 @@ CONNECTOR_TYPE_ADAPTERS = {
     'image_analysis': {
         'exif': ExifExtractorAdapter,
         'reverse_search': ReverseImageSearchAdapter,
+        'comparison': ImageComparisonAdapter,
     },
 }
 

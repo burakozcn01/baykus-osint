@@ -268,3 +268,104 @@ class DNSAdapter(DomainInfoAdapter):
         """
         record_type = kwargs.get('record_type', 'ANY')
         return self.get_domain_info(query, record_type)
+   
+    
+class SSLCertificateAdapter(DomainInfoAdapter):
+    """Adapter for SSL certificate information services."""
+    
+    def __init__(self, connector):
+        super().__init__(connector)
+        self.service = 'ssl_certificate'
+    
+    def test_connection(self):
+        """Test the connection to the SSL certificate service."""
+        test_domain = 'example.com'
+        success, _, _, error_message = self.get_ssl_info(test_domain)
+        
+        if success:
+            return True, f"SSL certificate service connection successful"
+        else:
+            return False, f"SSL certificate service connection failed: {error_message}"
+    
+    def get_ssl_info(self, domain):
+        """
+        Get SSL certificate information for a domain.
+        
+        Args:
+            domain: Domain name to look up
+            
+        Returns:
+            tuple: (success, ssl_data, error_message)
+        """
+        # Validate domain format
+        if not self._is_valid_domain(domain):
+            return False, None, f"Invalid domain format: {domain}"
+        
+        endpoint = self.configuration.get('ssl_endpoint', 'ssl/{domain}')
+        endpoint = endpoint.format(domain=domain)
+        
+        success, status_code, response_data, error_message = self._make_request('GET', endpoint)
+        
+        if success:
+            return True, self.process_ssl_data(response_data), ""
+        else:
+            return False, None, error_message
+    
+    def process_ssl_data(self, data):
+        """Process SSL certificate data."""
+        try:
+            # Extract relevant fields from the SSL certificate data
+            certificate = data.get('certificate', {})
+            
+            processed = {
+                'service': self.service,
+                'domain': data.get('domain', ''),
+                'valid': data.get('valid', False),
+                'certificate': {
+                    'subject': certificate.get('subject', {}),
+                    'issuer': certificate.get('issuer', {}),
+                    'version': certificate.get('version', ''),
+                    'serial_number': certificate.get('serial_number', ''),
+                    'not_before': certificate.get('not_before', ''),
+                    'not_after': certificate.get('not_after', ''),
+                    'signature_algorithm': certificate.get('signature_algorithm', ''),
+                    'extensions': certificate.get('extensions', {}),
+                    'fingerprints': certificate.get('fingerprints', {})
+                },
+                'chain': data.get('chain', []),
+                'raw_data': data
+            }
+            
+            # Calculate SSL certificate validity
+            now = datetime.now()
+            not_before = processed['certificate']['not_before']
+            not_after = processed['certificate']['not_after']
+            
+            if not_before and not_after:
+                try:
+                    not_before_date = datetime.fromisoformat(not_before.replace('Z', '+00:00'))
+                    not_after_date = datetime.fromisoformat(not_after.replace('Z', '+00:00'))
+                    processed['valid_from'] = not_before_date
+                    processed['valid_until'] = not_after_date
+                    processed['days_left'] = (not_after_date - now).days
+                    processed['is_expired'] = now > not_after_date
+                except (ValueError, TypeError):
+                    pass
+            
+            return processed
+        except Exception as e:
+            logger.error(f"Error processing SSL certificate data: {str(e)}")
+            return {'service': self.service, 'error': str(e), 'raw_data': data}
+    
+    def search(self, query, **kwargs):
+        """
+        Perform a search using the connector.
+        
+        Args:
+            query: Domain to search for
+            **kwargs: Additional search parameters
+            
+        Returns:
+            tuple: (success, results, error_message)
+        """
+        return self.get_ssl_info(query)

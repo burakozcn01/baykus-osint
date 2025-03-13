@@ -294,3 +294,119 @@ class ReverseImageSearchAdapter(ImageAnalysisAdapter):
         except Exception as e:
             logger.error(f"Error processing reverse image search results: {str(e)}")
             return {'service': self.service, 'error': str(e), 'raw_data': data}
+        
+
+class ImageComparisonAdapter(ImageAnalysisAdapter):
+    """Adapter for image comparison services."""
+    
+    def __init__(self, connector):
+        super().__init__(connector)
+        self.service = 'image_comparison'
+    
+    def test_connection(self):
+        """Test the connection to the image comparison service."""
+        test_url = 'https://www.example.com/test.jpg'
+        success, _, _, error_message = self.analyze_image_url(test_url)
+        
+        if success:
+            return True, f"Image comparison service connection successful"
+        else:
+            return False, f"Image comparison service connection failed: {error_message}"
+    
+    def compare_images(self, image1, image2, method='url'):
+        """
+        Compare two images.
+        
+        Args:
+            image1: First image (URL or base64 data)
+            image2: Second image (URL or base64 data)
+            method: Comparison method ('url' or 'file')
+            
+        Returns:
+            tuple: (success, comparison_results, error_message)
+        """
+        endpoint = self.configuration.get('compare_endpoint', 'compare')
+        
+        if method == 'url':
+            # Validate URL formats
+            if not self._is_valid_url(image1) or not self._is_valid_url(image2):
+                return False, None, "Invalid URL format for one or both images"
+            
+            params = {
+                'image1': image1,
+                'image2': image2,
+                'method': 'url'
+            }
+            
+            success, status_code, response_data, error_message = self._make_request('GET', endpoint, params=params)
+        elif method == 'file':
+            # For file comparison, we need to send the base64-encoded images in the request body
+            body = {
+                'image1': image1,
+                'image2': image2,
+                'method': 'file'
+            }
+            
+            success, status_code, response_data, error_message = self._make_request('POST', endpoint, data=body)
+        else:
+            return False, None, f"Unsupported comparison method: {method}"
+        
+        if success:
+            return True, self.process_comparison_results(response_data), ""
+        else:
+            return False, None, error_message
+    
+    def process_comparison_results(self, data):
+        """Process image comparison results."""
+        try:
+            processed = {
+                'service': self.service,
+                'type': 'image_comparison',
+                'similarity_score': data.get('similarity', 0.0),
+                'is_match': data.get('is_match', False),
+                'match_threshold': data.get('threshold', 0.8),
+                'differences': data.get('differences', {}),
+                'analysis': {
+                    'structural_similarity': data.get('metrics', {}).get('structural_similarity', 0.0),
+                    'histogram_correlation': data.get('metrics', {}).get('histogram_correlation', 0.0),
+                    'feature_matching': data.get('metrics', {}).get('feature_matching', 0.0)
+                },
+                'raw_data': data
+            }
+            
+            return processed
+        except Exception as e:
+            logger.error(f"Error processing image comparison results: {str(e)}")
+            return {'service': self.service, 'error': str(e), 'raw_data': data}
+    
+    def search(self, query, **kwargs):
+        """
+        Perform a search using the connector.
+        
+        Args:
+            query: First image to compare
+            **kwargs: Additional search parameters
+            
+        Returns:
+            tuple: (success, results, error_message)
+        """
+        search_type = kwargs.get('search_type', 'analysis')
+        
+        if search_type == 'comparison':
+            # Compare two images
+            image2 = kwargs.get('image2')
+            if not image2:
+                return False, None, "Second image is required for comparison"
+            
+            method = kwargs.get('method', 'url')
+            return self.compare_images(query, image2, method)
+        else:
+            # Default to regular image analysis
+            method = kwargs.get('method', 'url')
+            if method == 'url':
+                return self.analyze_image_url(query)
+            elif method == 'file':
+                filename = kwargs.get('filename')
+                return self.analyze_image_file(query, filename)
+            else:
+                return False, None, f"Unsupported method: {method}"

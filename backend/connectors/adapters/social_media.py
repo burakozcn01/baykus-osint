@@ -210,6 +210,183 @@ class TwitterAdapter(SocialMediaAdapter):
         except Exception as e:
             logger.error(f"Error processing Twitter search: {str(e)}")
             return {'platform': self.platform, 'error': str(e), 'raw_data': data}
+        
+
+class InstagramAdapter(SocialMediaAdapter):
+    """Adapter for the Instagram API."""
+    
+    def __init__(self, connector):
+        super().__init__(connector)
+        self.platform = 'instagram'
+    
+    def test_connection(self):
+        """Test the connection to the Instagram API."""
+        endpoint = 'users/self'
+        success, status_code, _, error_message = self._make_request('GET', endpoint)
+        
+        if success:
+            return True, f"Instagram API connection successful with status {status_code}"
+        else:
+            return False, f"Instagram API connection failed: {error_message}"
+    
+    def process_profile_data(self, data):
+        """Process Instagram profile data."""
+        try:
+            processed = {
+                'platform': self.platform,
+                'id': data.get('id', ''),
+                'username': data.get('username', ''),
+                'full_name': data.get('full_name', ''),
+                'biography': data.get('biography', ''),
+                'followers_count': data.get('follower_count', 0),
+                'following_count': data.get('following_count', 0),
+                'media_count': data.get('media_count', 0),
+                'is_private': data.get('is_private', False),
+                'is_verified': data.get('is_verified', False),
+                'profile_pic_url': data.get('profile_pic_url', ''),
+                'profile_url': f"https://instagram.com/{data.get('username', '')}",
+                'raw_data': data
+            }
+            return processed
+        except Exception as e:
+            logger.error(f"Error processing Instagram profile: {str(e)}")
+            return {'platform': self.platform, 'error': str(e), 'raw_data': data}
+    
+    def process_search_data(self, data):
+        """Process Instagram search data."""
+        try:
+            media = data.get('items', [])
+            processed = {
+                'platform': self.platform,
+                'count': len(media),
+                'items': []
+            }
+            
+            for item in media:
+                processed_item = {
+                    'id': item.get('id', ''),
+                    'type': item.get('media_type', ''),
+                    'caption': item.get('caption', {}).get('text', '') if item.get('caption') else '',
+                    'created_time': item.get('created_time', ''),
+                    'likes_count': item.get('like_count', 0),
+                    'comments_count': item.get('comment_count', 0),
+                    'user': {
+                        'id': item.get('user', {}).get('id', ''),
+                        'username': item.get('user', {}).get('username', ''),
+                        'full_name': item.get('user', {}).get('full_name', '')
+                    },
+                    'url': f"https://instagram.com/p/{item.get('code', '')}"
+                }
+                processed['items'].append(processed_item)
+            
+            return processed
+        except Exception as e:
+            logger.error(f"Error processing Instagram search: {str(e)}")
+            return {'platform': self.platform, 'error': str(e), 'raw_data': data}
+
+
+class RedditAdapter(SocialMediaAdapter):
+    """Adapter for the Reddit API."""
+    
+    def __init__(self, connector):
+        super().__init__(connector)
+        self.platform = 'reddit'
+    
+    def test_connection(self):
+        """Test the connection to the Reddit API."""
+        endpoint = 'api/v1/me'
+        success, status_code, _, error_message = self._make_request('GET', endpoint)
+        
+        if success:
+            return True, f"Reddit API connection successful with status {status_code}"
+        else:
+            return False, f"Reddit API connection failed: {error_message}"
+    
+    def _get_headers(self):
+        """Get headers for Reddit API requests."""
+        headers = super()._get_headers()
+        
+        # Reddit API requires a User-Agent with app name, version and username
+        headers['User-Agent'] = f"Baykus OSINT Tool/1.0 (by /u/{self.configuration.get('reddit_username', 'baykus-osint')})"
+        
+        return headers
+    
+    def process_profile_data(self, data):
+        """Process Reddit profile data."""
+        try:
+            processed = {
+                'platform': self.platform,
+                'id': data.get('id', ''),
+                'username': data.get('name', ''),
+                'created_utc': data.get('created_utc', 0),
+                'comment_karma': data.get('comment_karma', 0),
+                'link_karma': data.get('link_karma', 0),
+                'is_gold': data.get('is_gold', False),
+                'is_mod': data.get('is_mod', False),
+                'has_verified_email': data.get('has_verified_email', False),
+                'profile_url': f"https://reddit.com/user/{data.get('name', '')}",
+                'raw_data': data
+            }
+            return processed
+        except Exception as e:
+            logger.error(f"Error processing Reddit profile: {str(e)}")
+            return {'platform': self.platform, 'error': str(e), 'raw_data': data}
+    
+    def process_search_data(self, data):
+        """Process Reddit search data."""
+        try:
+            if 'data' in data and 'children' in data['data']:
+                items = data['data']['children']
+                processed = {
+                    'platform': self.platform,
+                    'count': len(items),
+                    'items': []
+                }
+                
+                for item in items:
+                    item_data = item.get('data', {})
+                    kind = item.get('kind', '')
+                    
+                    if kind == 't3':  # Post
+                        processed_item = {
+                            'id': item_data.get('id', ''),
+                            'type': 'post',
+                            'title': item_data.get('title', ''),
+                            'selftext': item_data.get('selftext', ''),
+                            'created_utc': item_data.get('created_utc', 0),
+                            'score': item_data.get('score', 0),
+                            'upvote_ratio': item_data.get('upvote_ratio', 0),
+                            'num_comments': item_data.get('num_comments', 0),
+                            'subreddit': item_data.get('subreddit', ''),
+                            'author': item_data.get('author', ''),
+                            'url': f"https://reddit.com{item_data.get('permalink', '')}"
+                        }
+                    elif kind == 't1':  # Comment
+                        processed_item = {
+                            'id': item_data.get('id', ''),
+                            'type': 'comment',
+                            'body': item_data.get('body', ''),
+                            'created_utc': item_data.get('created_utc', 0),
+                            'score': item_data.get('score', 0),
+                            'author': item_data.get('author', ''),
+                            'subreddit': item_data.get('subreddit', ''),
+                            'url': f"https://reddit.com{item_data.get('permalink', '')}"
+                        }
+                    else:
+                        processed_item = {
+                            'id': item_data.get('id', ''),
+                            'type': 'unknown',
+                            'raw_data': item_data
+                        }
+                    
+                    processed['items'].append(processed_item)
+                
+                return processed
+            else:
+                return {'platform': self.platform, 'error': 'Invalid response format', 'raw_data': data}
+        except Exception as e:
+            logger.error(f"Error processing Reddit search: {str(e)}")
+            return {'platform': self.platform, 'error': str(e), 'raw_data': data}
 
 
 class FacebookAdapter(SocialMediaAdapter):
