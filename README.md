@@ -128,14 +128,6 @@ All API endpoints are documented using Swagger/OpenAPI, accessible at `/api/docs
 4. Use the various tools to discover and analyze assets related to your target
 5. Generate reports based on your findings
 
-## Contributing
-
-We welcome contributions to Baykuş! Please see our [contributing guidelines](CONTRIBUTING.md) for details.
-
-## License
-
-This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
-
 ## Acknowledgements
 
 - The name "Baykuş" (Owl) was chosen to represent the tool's ability to see and gather intelligence in the digital darkness.
